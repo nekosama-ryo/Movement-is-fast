@@ -1,20 +1,14 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Cysharp.Threading.Tasks;
+using System.Threading;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+
 /// <summary>タイトルシーンの挙動 </summary>
 public class TitleScene
 {
-    //現在行う処理。こいつを通して処理を呼び出すことで、pubulicを作りすぎずに完結できる。後々処理が増えても大丈夫な拡張性。
-    private System.Action titleAction = default;
-
-    #region ーーーーーーゲーム開始画面で使用する変数ーーーーーーー
-    //ゲーム開始画面に存在するオブジェクト群
-    private GameObject _titleLogoObj = default;
-    private GameObject _anyButtonObj = default;
-
-    //AnyButtonのテキスト。透明度を徐々に変える。
-    private Text _anyButtonText = default;
     private Color _anyButtonColor = new Color(1, 1, 1, 1);
 
     //AnyButtonのテキストの透明度を切り替える速度。
@@ -28,21 +22,6 @@ public class TitleScene
 
     //ゲーム開始画面にあるオブジェクトが消えるまでの時間
     private float _titleObjDestroyTime = 0.3f;
-    #endregion
-
-    #region ーーーーーー選択画面で使用する変数ーーーーーーー
-    //ゲーム開始画面に存在するオブジェクト群
-    private GameObject _selectWindowObj = default;
-    private GameObject _selectTextObj = default;
-
-    private Text _selectObjectText = default;
-    private Text _selectDataText = default;
-    private Text _selectPoolText = default;
-    private Text _selectAsyncText = default;
-    private Text _selectBulletCountText = default;
-    private Text _selectOnText = default;
-    private Text _selectOffText = default;
-    private Text _selectGameStartText = default;
 
     //選択画面で現在どこを参照しているか
     private int _selectPoint = 0;
@@ -72,254 +51,291 @@ public class TitleScene
     //選択画面オブジェクトが表示完了するまでの時間
     private float _selectWindowTime = 0.5f;
 
-    private bool _orientedData = false;
     //非選択時のテキストの色、透明度
     private float _SelectOffTransparence = 0.6f;
     private Color _selectOffColor = new Color(0.3f, 0.3f, 0.3f);
 
-    private int _sumBullet = 10;
-    #endregion
+    private int _sumBullet = 100;
 
-    //コンストラクタ
-    public TitleScene()
+    //タイトル画面の位置Ｅｎｕｍ
+    private TitleAction _titleAction = 0;
+
+    private float _selectInstantiateTime = 0.5f;
+    //秒数で処理を切り替える
+    private float _countTime = 0f;
+
+
+    public void OnStart()
     {
-        //ゲーム開始画面のオブジェクト
-        _titleLogoObj = GameObject.Find("TitleLogo");
-        _anyButtonObj = GameObject.Find("Press Any Button");
-        _anyButtonText = _anyButtonObj.GetComponent<Text>();
-
-        //選択画面のオブジェクト
-        _selectObjectText = GameObject.Find("Object").GetComponent<Text>();
-        _selectDataText = GameObject.Find("Data").GetComponent<Text>();
-        _selectPoolText = GameObject.Find("Pool").GetComponent<Text>();
-        _selectAsyncText = GameObject.Find("Async").GetComponent<Text>();
-        _selectBulletCountText = GameObject.Find("BulletCount").GetComponent<Text>();
-        _selectOnText = GameObject.Find("ON").GetComponent<Text>();
-        _selectOffText = GameObject.Find("OFF").GetComponent<Text>();
-        _selectGameStartText = GameObject.Find("GameStart").GetComponent<Text>();
-        _selectWindowObj = GameObject.Find("SelectWindow");
-        _selectTextObj = GameObject.Find("SelectText");
-
         //ゲーム開始時の処理を設定する
-        SetAction(StartScene);
     }
 
     /// <summary>タイトル画面で現在行う処理を呼び出す</summary>
-    public void TitleAction()
+    public void OnUpdate()
     {
-        //現在行いたい処理を返す。
-        titleAction();
-    }
-
-    /// <summary>現在行う処理を変更する</summary>
-    private void SetAction(System.Action newAction)
-    {
-        //現在呼び出す処理が同じだった場合変更しない。
-        if (titleAction != newAction)
+        //それぞれの処理
+        //※上から順番に処理が行われるので、メソッド分けするよりも辿りやすいと判断して、メソッド分けは行っていません。
+        //一部似通っている処理もありましたが、中途半端に分けるよりも、こちらのほうが見やすいと判断しました。変えても問題はない。
+        switch (_titleAction)
         {
-            //処理の変更
-            titleAction = newAction;
+            //ゲーム開始画面
+            case TitleAction.Title_Start:
+                {
+                    //AnyButtonの透明度を動かす処理
+                    SerializeData.Data.anyButtonText.color = SetColorTransparency(SerializeData.Data.anyButtonText.color, ref _anyButtonColorSpeed);
+
+                    //何かボタンが押されたら、次の画面へ移行する。
+                    if (!Input.anyKeyDown) return;
+                    //AnyButtonの文字を点滅させる処理に移行
+                    _titleAction = TitleAction.Title_Flash;
+                }
+                break;
+
+            //AnyButtonの文字を点滅させる。
+            case TitleAction.Title_Flash:
+                {
+                    //AnyButtonの透明度を動かす処理
+                    SerializeData.Data.anyButtonText.color = SetColorTransparency(SerializeData.Data.anyButtonText.color, ref _anyButtonReplacedSpeed);
+                    //時間をカウント
+                    _countTime += Time.deltaTime;
+
+                    //これ以降は時間経過後の処理
+                    if (_countTime < _anyButtonReplacedTime) return;
+                    //値のリセットと、ロゴの縮小処理に移行
+                    _titleAction = TitleAction.Title_Shrink;
+                    _countTime = 0;
+                }
+                break;
+
+
+                //ロゴの縮小
+            case TitleAction.Title_Shrink:
+                {
+                    //可読性が下がるので、一時変数にまとめた。
+                    Transform[] transforms = SerializeData.Data.titleObjTransforms;
+
+                    //徐々に縮小
+                    foreach(Transform transform in transforms)
+                    {
+                        transform.localScale = SetGraduallySizeY(transform.localScale, _titleObjDestroyTime, true);
+                    }
+
+                    //これ以降は縮小完了後の処理
+                    if (!Mathf.Approximately(transforms[transforms.Length - 1].localScale.y, 0f)) return;
+                    //選択画面の表示処理へ
+                    _titleAction = TitleAction.Select_Expansion;
+                }
+                break;
+
+                //選択画面の表示処理
+            case TitleAction.Select_Expansion:
+                {
+                    //可読性が下がるので、一時変数にまとめた。
+                    Transform[] transforms = SerializeData.Data.selectObjTransforms;
+
+                    //徐々に表示
+                    foreach (Transform transform in transforms)
+                    {
+                        transform.localScale = SetGraduallySizeY(transform.localScale,_selectInstantiateTime);
+                    }
+
+                    //これ以降は縮小完了後の処理
+                    if (!Mathf.Approximately(transforms[transforms.Length - 1].localScale.y, 1f)) return;
+                    //選択画面の処理へ
+                    _titleAction = TitleAction.Select;
+                }
+                break;
+
+            //選択画面
+            case TitleAction.Select:
+
+                //上下のキー操作
+                SelectKey();
+
+                //指向の選択
+                SelectSetSwitchColor(0, SerializeData.Data.oriented);
+                //プールの選択
+                SelectSetColor(1, SerializeData.Data.selectPoolText);
+                //非同期の選択
+                SelectSetColor(2, SerializeData.Data.selectAsyncText);
+                //弾数の選択
+
+                //無敵モードの選択
+                SelectSetSwitchColor(4, SerializeData.Data.Invincibility);
+                //ゲームスタートの選択
+                SelectSetColor(5, SerializeData.Data.selectGameStartText);
+
+                break;
         }
     }
 
-    /// <summary>ゲーム開始画面の処理</summary>
-    private void StartScene()
-    {
-        //何かボタンが押されたら、次の画面へ移行する。
-        if (Input.anyKeyDown)
-        {
-            //画面を切り替える前処理を呼び出す
-            SetAction(StartSceneNext);
-        }
-
-        //AnyButtonの透明度を動かす処理
-        SetAnyButtonTransparency(ref _anyButtonColorSpeed);
-    }
-
-    /// <summary>AnyButtonのテキストの透明度を動かす</summary>
-    private void SetAnyButtonTransparency(ref float speed)
+    /// <summary>
+    /// 透明度を徐々に動かす
+    /// </summary>
+    /// <param name="color">動かしたい色情報</param>
+    /// <param name="speed">動かすスピード</param>
+    /// <returns>現在の透明度</returns>
+    private Color SetColorTransparency(Color color, ref float speed)
     {
         //透明度の加減算の切り替えを行う。
-        if (_anyButtonColor.a == 0 || _anyButtonColor.a == 1)
+        if (Mathf.Approximately(color.a, 0) || Mathf.Approximately(color.a, 1))
         {
             speed *= -1;
         }
 
         //透明度を加減算で動かす。
-        _anyButtonColor.a = Mathf.Clamp(_anyButtonColor.a + speed, 0, 1f);
+        color.a = Mathf.Clamp(color.a + speed, 0, 1f);
         //透明度を設定する。
-        _anyButtonText.color = _anyButtonColor;
+        return color;
     }
 
-    /// <summary>ゲーム開始画面から次の画面へ移行するまでの処理</summary>
-    private void StartSceneNext()
-    {
-        //一定秒数後にオブジェクトを消す
-        if (_anyButtonCountTime > _anyButtonReplacedTime)
-        {
-            //オブジェクトが完全に消えたら、次の画面に移行する。
-            if (_titleLogoObj.transform.localScale.y == 0 && _anyButtonObj.transform.localScale.y == 0)
-            {
-                SetAction(SelectScene);
-            }
-
-            //徐々にタイトルロゴと、AnyButtonの文字を消す処理
-            _titleLogoObj.transform.localScale = GraduallySizeY(-_titleObjDestroyTime, _titleLogoObj.transform.localScale, 2);
-            _anyButtonObj.transform.localScale = GraduallySizeY(-_titleObjDestroyTime, _anyButtonObj.transform.localScale, 1);
-        }
-        else
-        {
-            //秒数をカウントし、数秒後に処理を切り替える。
-            _anyButtonCountTime += Time.deltaTime;
-            //AnyButtonを点滅させる
-            SetAnyButtonTransparency(ref _anyButtonReplacedSpeed);
-        }
-    }
-
-    /// <summary>徐々にオブジェクトのY軸を広げて表示させる</summary>
-    /// <param name="time">最大、最小サイズになるまでの時間。マイナス値で切り替わる</param>
-    /// <param name="size">変えたいオブジェクトの大きさ</param>
+    /// <summary>
+    /// 徐々に大きさを変える
+    /// </summary>
+    /// <param name="transform">変更するオブジェクトの大きさ</param>
+    /// <param name="time">変更がおわる時間</param>
     /// <param name="max">最大サイズ</param>
-    private Vector3 GraduallySizeY(float time, Vector3 size, float max)
+    /// <param name="reduce">縮小</param>
+    private Vector3 SetGraduallySizeY(Vector3 size, float time, bool reduce = false, float max = 1)
     {
-        size.y = Mathf.Clamp(size.y + Time.deltaTime / time, 0, max);
+        //縮小か拡大かを管理
+        int minus = reduce ? -1 : 1;
+
+        //ループ。拡大、縮小をおこなう
+        size.y = Mathf.Clamp(size.y + Time.deltaTime * minus / time, 0, max);
         return size;
     }
 
-    /// <summary>選択画面の処理 </summary>
-    private void SelectScene()
+    /// <summary>
+    /// 選択画面のキー移動処理
+    /// </summary>
+    private void SelectKey()
     {
-        //選択画面のウィンドウの表示が終わっているかどうか。
-        if (_selectWindowObj.transform.localScale.y >= _selectWindowSize && _selectTextObj.transform.localScale.y >= _selectTextSize)
+        //上キー処理
+        if (Input.GetKeyDown(Data.UP))
         {
-            //上キー処理
-            if (Input.GetKeyDown(Data.UP))
-            {
-                SelectPoint -= 1;
-            }
-            //下キー処理
-            if (Input.GetKeyDown(Data.Down))
-            {
-                SelectPoint += 1;
-            }
-
-            //選択の処理
-            //指向
-            (_selectObjectText.color, _selectDataText.color) = SelectColorSwitch(0, (_selectObjectText.color, _selectDataText.color));
-            //プール
-            _selectPoolText.color = SelectColor(1, _selectPoolText.color);
-            //非同期
-            _selectAsyncText.color = SelectColor(2, _selectAsyncText.color);
-            //弾数
-            _selectBulletCountText.color = SelectColor(3, _selectBulletCountText.color, false, () =>
-            {
-                //弾を増やす処理
-                if (Input.GetKeyDown(Data.Right))
-                {
-                    GameManager.Bullet += _sumBullet;
-                    _selectBulletCountText.text = System.Convert.ToString(GameManager.Bullet);
-                }
-                //弾を減らす処理
-                if (Input.GetKeyDown(Data.Left))
-                {
-                    GameManager.Bullet -= _sumBullet;
-                    _selectBulletCountText.text = System.Convert.ToString(GameManager.Bullet);
-                }
-            });
-            //無敵モード
-            (_selectOnText.color, _selectOffText.color) = SelectColorSwitch(4, (_selectOnText.color, _selectOffText.color));
-            //ゲーム開始処理のテキスト
-            _selectGameStartText.color = SelectColor(5, _selectGameStartText.color, false, () =>
-            {
-                //ゲーム開始
-            });
+            SelectPoint -= 1;
         }
-        else
+        //下キー処理
+        if (Input.GetKeyDown(Data.Down))
         {
-            //選択ウィンドウとテキストの表示処理
-            _selectWindowObj.transform.localScale = GraduallySizeY(_selectWindowTime, _selectWindowObj.transform.localScale, _selectWindowSize);
-            _selectTextObj.transform.localScale = GraduallySizeY(_selectWindowTime, _selectTextObj.transform.localScale, _selectTextSize);
+            SelectPoint += 1;
         }
     }
 
-    /// <summary>選択位置の色を変える処理 </summary>
-    private Color SelectColor(int selectPoint, Color color, bool switchOff = true, System.Action buttonAction = null)
+    /// <summary>色のオンオフを切り替える </summary>
+    private Color SwitchColor(Color color)
     {
-        //選択位置が自分の位置になったら表示する
-        if (SelectPoint == selectPoint)
+        //オンの時はオフの色を返す。
+        if (color == Color.white)
         {
-            //文字の透明度をなくす
-            color.a = 1;
-
-            //決定が押された際の処理&特殊な処理が必要な場合かどうか
-            if (switchOff)
-            {
-                if (Input.GetKeyDown(Data.AButton))
-                {
-                    //オンの時はオフ、オフの時はオンにする。
-                    if (color.r < 1 && color.g < 1 && color.b < 1)
-                    {
-                        color = Color.white;
-                    }
-                    else
-                    {
-                        color = _selectOffColor;
-                    }
-                }
-            }
-
-            else
-            {
-                //特殊処理を呼び出す。
-                buttonAction();
-            }
+            return _selectOffColor;
         }
-        else
+        //オフの時はオンの色を返す。
+        return Color.white;
+    }
+
+    /// <summary>
+    /// ボタンのオンオフ処理
+    /// </summary>
+    /// <param name="number">ボタン番号</param>
+    /// <param name="color">色情報</param>
+    /// <returns>選択状況に応じた色情報</returns>
+    private void SelectSetColor(int number, Text text)
+    {
+        //対応した番号出なければ、透明にして返す
+        if (SelectPoint != number)
         {
-            //非選択時に文字を薄くする。
+            //色の変更
+            Color color = text.color;
             color.a = _SelectOffTransparence;
+            text.color = color;
+            return;
         }
 
-        return color;
+        //選択番号時に、対応したボタンを押すとオンとオフを切り替える。
+        if (Input.GetKeyDown(Data.AButton))
+        {
+            text.color = SwitchColor(text.color);
+        }
     }
 
-    /// <summary>選択位置の色を変える処理（複数選択） </summary>
-    private (Color, Color) SelectColorSwitch(int selectPoint, (Color on, Color off) color)
+    /// <summary>
+    /// 排他的な複数ボタンのオンオフ処理
+    /// </summary>
+    /// <param name="number">ボタン番号</param>
+    /// <param name="texts">テキスト情報</param>
+    private void SelectSetSwitchColor(int number, Text[] texts)
     {
-        //選択位置が自分の位置になったら表示する
-        if (SelectPoint == selectPoint)
+        //現在位置が選択位置出なければ、透明にする。
+        if (SelectPoint != number)
         {
-            //文字の透明度をなくす
-            color.on.a = 1;
-            color.off.a = 1;
-
-            //決定が押された際の処理
-            if (Input.GetKeyDown(Data.AButton))
+            //透明にする。
+            Color color = texts[0].color;
+            color.a = _SelectOffTransparence;
+            //全てのテキストに対し行う
+            foreach (Text text in texts)
             {
-                //それぞれのテキストのオンとオフを切り替える
-                if (color.on.r < 1 && color.on.g < 1 && color.on.b < 1)
-                {
-                    color = (Color.white, _selectOffColor);
-                }
-                else
-                {
-                    color = (_selectOffColor, Color.white);
-                }
+                text.color = color;
             }
         }
-        else
-        {
-            //非選択時に文字を薄くする。
-            color.on.a = _SelectOffTransparence;
-            color.off.a = _SelectOffTransparence;
-        }
 
-        return color;
+        //ボタンが押された際、オンとオフを切り替える。
+        if (Input.GetKeyDown(Data.AButton))
+        {
+            for (int i = 0; i < texts.Length; i++)
+            {
+                //最後の位置がオンだったときは、１から処理を始める
+                if (texts[texts.Length - 1].color == Color.white)
+                {
+                    texts[0].color = Color.white;
+                    continue;
+                }
+
+                //現在位置がオンだったときは、オンオフを切り替えて、２個先から再処理
+                if (texts[i].color == Color.white)
+                {
+                    //オンオフの変更
+                    texts[i].color = SwitchColor(texts[i].color);
+                    //処理位置を次のボタンへ
+                    i++;
+                    //オンオフの変更
+                    texts[i].color = SwitchColor(texts[i].color);
+                    continue;
+                }
+
+                //オフにする。
+                texts[i].color = _selectOffColor;
+            }
+        }
     }
 
     /// <summary>ゲームの開始処理 </summary>
     private void GameStart()
     {
-
+        //テキストの透明度からゲームの設定状態を決定する。
+        Data.IsOrientedObject = CheckTransparence(SerializeData.Data.oriented[0].color);
+        Data.IsPool = CheckTransparence(SerializeData.Data.selectPoolText.color);
+        Data.IsAsync = CheckTransparence(SerializeData.Data.selectAsyncText.color);
+        Data.IsInvincibilily = CheckTransparence(SerializeData.Data.Invincibility[0].color);
+        //シーン切り替え
+        Data.SetScene(Data.GameNumber);
     }
+
+    /// <summary>色の透明度からフラグを設定する </summary>
+    private bool CheckTransparence(Color color)
+    {
+        return Mathf.Approximately(color.r, 1) && Mathf.Approximately(color.g, 1) && Mathf.Approximately(color.b, 1);
+    }
+}
+
+//処理段階をEnumに分けて、行う。
+//もっといい作り方があるはず。思いついたら修正
+enum TitleAction
+{
+    Title_Start,//スタート画面
+    Title_Flash,//テキストの点滅
+    Title_Shrink,//タイトルロゴの収縮
+    Select_Expansion,//ウィンドウの出現
+    Select//選択画面
 }
