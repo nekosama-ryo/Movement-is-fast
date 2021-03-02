@@ -1,14 +1,12 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
-public class SerializeData : MonoBehaviour
+public class SerializeTitleData : MonoBehaviour
 {
-    public static SerializeData Data { get; private set; } = default;
-    public void SetSerializeData(SerializeData data)
+    public static SerializeTitleData TitleData { get; private set; } = default;
+    public void SetSerializeData(SerializeTitleData data)
     {
-        Data = data;
+        TitleData = data;
     }
 
     //ゲーム開始画面

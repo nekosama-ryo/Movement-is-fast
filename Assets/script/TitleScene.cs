@@ -1,16 +1,9 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using Cysharp.Threading.Tasks;
-using System.Threading;
+﻿using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 
 /// <summary>タイトルシーンの挙動 </summary>
 public class TitleScene
 {
-    private Color _anyButtonColor = new Color(1, 1, 1, 1);
-
     //AnyButtonのテキストの透明度を切り替える速度。
     private float _anyButtonColorSpeed = 0.002f;
     //AnyButtonの画面切り替え時に透明度を切り替える速度
@@ -18,8 +11,6 @@ public class TitleScene
 
     //ボタンが押された際にAnyButtonが何秒後に切り替わるか
     private float _anyButtonReplacedTime = 0.3f;
-    private float _anyButtonCountTime = 0;
-
     //ゲーム開始画面にあるオブジェクトが消えるまでの時間
     private float _titleObjDestroyTime = 0.3f;
 
@@ -45,14 +36,9 @@ public class TitleScene
         }
     }
 
-    //選択画面オブジェクトのサイズ。
-    private float _selectWindowSize = 1f;
-    private float _selectTextSize = 1f;
-    //選択画面オブジェクトが表示完了するまでの時間
-    private float _selectWindowTime = 0.5f;
-
     //非選択時のテキストの色、透明度
     private float _SelectOffTransparence = 0.6f;
+    private float _SelectOnTransparence = 1f;
     private Color _selectOffColor = new Color(0.3f, 0.3f, 0.3f);
 
     private int _sumBullet = 100;
@@ -64,10 +50,10 @@ public class TitleScene
     //秒数で処理を切り替える
     private float _countTime = 0f;
 
-
     public void OnStart()
     {
-        //ゲーム開始時の処理を設定する
+        _titleAction = TitleAction.Title_Start;
+        SelectPoint = 0;
     }
 
     /// <summary>タイトル画面で現在行う処理を呼び出す</summary>
@@ -82,20 +68,20 @@ public class TitleScene
             case TitleAction.Title_Start:
                 {
                     //AnyButtonの透明度を動かす処理
-                    SerializeData.Data.anyButtonText.color = SetColorTransparency(SerializeData.Data.anyButtonText.color, ref _anyButtonColorSpeed);
+                    SerializeTitleData.TitleData.anyButtonText.color = SetColorGraduallyTransparency(SerializeTitleData.TitleData.anyButtonText.color, ref _anyButtonColorSpeed);
 
                     //何かボタンが押されたら、次の画面へ移行する。
                     if (!Input.anyKeyDown) return;
                     //AnyButtonの文字を点滅させる処理に移行
                     _titleAction = TitleAction.Title_Flash;
                 }
-                break;
+                return;
 
             //AnyButtonの文字を点滅させる。
             case TitleAction.Title_Flash:
                 {
                     //AnyButtonの透明度を動かす処理
-                    SerializeData.Data.anyButtonText.color = SetColorTransparency(SerializeData.Data.anyButtonText.color, ref _anyButtonReplacedSpeed);
+                    SerializeTitleData.TitleData.anyButtonText.color = SetColorGraduallyTransparency(SerializeTitleData.TitleData.anyButtonText.color, ref _anyButtonReplacedSpeed);
                     //時間をカウント
                     _countTime += Time.deltaTime;
 
@@ -105,17 +91,16 @@ public class TitleScene
                     _titleAction = TitleAction.Title_Shrink;
                     _countTime = 0;
                 }
-                break;
+                return;
 
-
-                //ロゴの縮小
+            //ロゴの縮小
             case TitleAction.Title_Shrink:
                 {
                     //可読性が下がるので、一時変数にまとめた。
-                    Transform[] transforms = SerializeData.Data.titleObjTransforms;
+                    Transform[] transforms = SerializeTitleData.TitleData.titleObjTransforms;
 
                     //徐々に縮小
-                    foreach(Transform transform in transforms)
+                    foreach (Transform transform in transforms)
                     {
                         transform.localScale = SetGraduallySizeY(transform.localScale, _titleObjDestroyTime, true);
                     }
@@ -125,18 +110,18 @@ public class TitleScene
                     //選択画面の表示処理へ
                     _titleAction = TitleAction.Select_Expansion;
                 }
-                break;
+                return;
 
-                //選択画面の表示処理
+            //選択画面の表示処理
             case TitleAction.Select_Expansion:
                 {
                     //可読性が下がるので、一時変数にまとめた。
-                    Transform[] transforms = SerializeData.Data.selectObjTransforms;
+                    Transform[] transforms = SerializeTitleData.TitleData.selectObjTransforms;
 
                     //徐々に表示
                     foreach (Transform transform in transforms)
                     {
-                        transform.localScale = SetGraduallySizeY(transform.localScale,_selectInstantiateTime);
+                        transform.localScale = SetGraduallySizeY(transform.localScale, _selectInstantiateTime);
                     }
 
                     //これ以降は縮小完了後の処理
@@ -144,28 +129,28 @@ public class TitleScene
                     //選択画面の処理へ
                     _titleAction = TitleAction.Select;
                 }
-                break;
+                return;
 
             //選択画面
             case TitleAction.Select:
+                {
+                    //上下のキー操作
+                    SelectKey();
 
-                //上下のキー操作
-                SelectKey();
-
-                //指向の選択
-                SelectSetSwitchColor(0, SerializeData.Data.oriented);
-                //プールの選択
-                SelectSetColor(1, SerializeData.Data.selectPoolText);
-                //非同期の選択
-                SelectSetColor(2, SerializeData.Data.selectAsyncText);
-                //弾数の選択
-
-                //無敵モードの選択
-                SelectSetSwitchColor(4, SerializeData.Data.Invincibility);
-                //ゲームスタートの選択
-                SelectSetColor(5, SerializeData.Data.selectGameStartText);
-
-                break;
+                    //指向の選択
+                    SelectSetSwitchColor(0, SerializeTitleData.TitleData.oriented);
+                    //プールの選択
+                    SelectSetColor(1, SerializeTitleData.TitleData.selectPoolText);
+                    //非同期の選択
+                    SelectSetColor(2, SerializeTitleData.TitleData.selectAsyncText);
+                    //弾数の選択
+                    SetBullet(3, SerializeTitleData.TitleData.selectBulletCountText);
+                    //無敵モードの選択
+                    SelectSetSwitchColor(4, SerializeTitleData.TitleData.Invincibility);
+                    //ゲームスタートの選択
+                    GameStart(5, SerializeTitleData.TitleData.selectGameStartText);
+                }
+                return;
         }
     }
 
@@ -175,7 +160,7 @@ public class TitleScene
     /// <param name="color">動かしたい色情報</param>
     /// <param name="speed">動かすスピード</param>
     /// <returns>現在の透明度</returns>
-    private Color SetColorTransparency(Color color, ref float speed)
+    private Color SetColorGraduallyTransparency(Color color, ref float speed)
     {
         //透明度の加減算の切り替えを行う。
         if (Mathf.Approximately(color.a, 0) || Mathf.Approximately(color.a, 1))
@@ -226,13 +211,13 @@ public class TitleScene
     /// <summary>色のオンオフを切り替える </summary>
     private Color SwitchColor(Color color)
     {
-        //オンの時はオフの色を返す。
-        if (color == Color.white)
-        {
-            return _selectOffColor;
-        }
-        //オフの時はオンの色を返す。
-        return Color.white;
+        return  color == Color.white ? _selectOffColor : Color.white;
+    }
+
+    private Color SetTransparent(int number,Color color)
+    {
+        color.a = SelectPoint == number ? _SelectOnTransparence : _SelectOffTransparence;
+        return color;
     }
 
     /// <summary>
@@ -243,21 +228,12 @@ public class TitleScene
     /// <returns>選択状況に応じた色情報</returns>
     private void SelectSetColor(int number, Text text)
     {
-        //対応した番号出なければ、透明にして返す
-        if (SelectPoint != number)
-        {
-            //色の変更
-            Color color = text.color;
-            color.a = _SelectOffTransparence;
-            text.color = color;
-            return;
-        }
+        //選択位置に応じた透明度を設定
+        text.color = SetTransparent(number, text.color);
 
         //選択番号時に、対応したボタンを押すとオンとオフを切り替える。
-        if (Input.GetKeyDown(Data.AButton))
-        {
+        if (!Input.GetKeyDown(Data.AButton) || SelectPoint != number) return;
             text.color = SwitchColor(text.color);
-        }
     }
 
     /// <summary>
@@ -267,57 +243,76 @@ public class TitleScene
     /// <param name="texts">テキスト情報</param>
     private void SelectSetSwitchColor(int number, Text[] texts)
     {
+        Color color;
+
         //現在位置が選択位置出なければ、透明にする。
-        if (SelectPoint != number)
+        foreach (Text text in texts)
         {
-            //透明にする。
-            Color color = texts[0].color;
-            color.a = _SelectOffTransparence;
-            //全てのテキストに対し行う
-            foreach (Text text in texts)
-            {
-                text.color = color;
-            }
+            color = text.color;
+            text.color = SetTransparent(number,color);
         }
 
+        if (!Input.GetKeyDown(Data.AButton) || SelectPoint != number) return;
+
         //ボタンが押された際、オンとオフを切り替える。
-        if (Input.GetKeyDown(Data.AButton))
+        for (int i = 0; i < texts.Length; i++)
         {
-            for (int i = 0; i < texts.Length; i++)
+            //最後の位置がオンだったときは、１から処理を始める
+            if (texts[texts.Length - 1].color == Color.white)
             {
-                //最後の位置がオンだったときは、１から処理を始める
-                if (texts[texts.Length - 1].color == Color.white)
-                {
-                    texts[0].color = Color.white;
-                    continue;
-                }
-
-                //現在位置がオンだったときは、オンオフを切り替えて、２個先から再処理
-                if (texts[i].color == Color.white)
-                {
-                    //オンオフの変更
-                    texts[i].color = SwitchColor(texts[i].color);
-                    //処理位置を次のボタンへ
-                    i++;
-                    //オンオフの変更
-                    texts[i].color = SwitchColor(texts[i].color);
-                    continue;
-                }
-
-                //オフにする。
-                texts[i].color = _selectOffColor;
+                //最初をオンにする。
+                texts[0].color = Color.white;
+                //最終位置をオフにする。
+                texts[texts.Length - 1].color = _selectOffColor;
+                //これ以上探索の必要がないので終了する。
+                return;
             }
+
+            //現在位置がオンだったときは、オンオフを切り替えて、２個先から再処理
+            if (texts[i].color != Color.white) continue;
+
+            //オンオフの変更
+            texts[i].color = SwitchColor(texts[i].color);
+            //処理位置を次のボタンへ
+            i++;
+            //オンオフの変更
+            texts[i].color = SwitchColor(texts[i].color);
+            //これ以上探索の必要がないので終了する。
+            return;
+        }
+    }
+
+    private void SetBullet(int number, Text text)
+    {
+        //選択位置に応じた透明度を設定
+        text.color = SetTransparent(number, text.color);
+
+        if (number != SelectPoint) return;
+
+        if(Input.GetKeyDown(Data.Right))
+        {
+            Data.Bullet += _sumBullet;
+            SerializeTitleData.TitleData.selectBulletCountText.text = Data.Bullet.ToString();
+        }
+        if (Input.GetKeyDown(Data.Left))
+        {
+            Data.Bullet -= _sumBullet;
+            SerializeTitleData.TitleData.selectBulletCountText.text = Data.Bullet.ToString();
         }
     }
 
     /// <summary>ゲームの開始処理 </summary>
-    private void GameStart()
+    private void GameStart(int number, Text text)
     {
+        //選択位置に応じた透明度を設定
+        text.color = SetTransparent(number, text.color);
+        if (number != SelectPoint||!Input.GetKeyDown(Data.AButton)) return;
+
         //テキストの透明度からゲームの設定状態を決定する。
-        Data.IsOrientedObject = CheckTransparence(SerializeData.Data.oriented[0].color);
-        Data.IsPool = CheckTransparence(SerializeData.Data.selectPoolText.color);
-        Data.IsAsync = CheckTransparence(SerializeData.Data.selectAsyncText.color);
-        Data.IsInvincibilily = CheckTransparence(SerializeData.Data.Invincibility[0].color);
+        Data.IsOrientedObject = CheckTransparence(SerializeTitleData.TitleData.oriented[0].color);
+        Data.IsPool = CheckTransparence(SerializeTitleData.TitleData.selectPoolText.color);
+        Data.IsAsync = CheckTransparence(SerializeTitleData.TitleData.selectAsyncText.color);
+        Data.IsInvincibilily = CheckTransparence(SerializeTitleData.TitleData.Invincibility[0].color);
         //シーン切り替え
         Data.SetScene(Data.GameNumber);
     }
@@ -337,5 +332,6 @@ enum TitleAction
     Title_Flash,//テキストの点滅
     Title_Shrink,//タイトルロゴの収縮
     Select_Expansion,//ウィンドウの出現
-    Select//選択画面
+    Select,//選択画面
+    GameStartFlash//選択画面
 }
