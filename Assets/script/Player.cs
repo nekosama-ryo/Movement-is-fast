@@ -1,29 +1,22 @@
-﻿using UnityEngine;
+﻿using Cysharp.Threading.Tasks;
 using System.Threading;
-using Cysharp.Threading.Tasks;
-using Unity.Entities;
-using Unity.Jobs;
-using Unity.Mathematics;
-using Unity.Rendering;
-using Unity.Transforms;
-using System;
+using UnityEngine;
 
 public class ObjectPlayer
 {
     //現在のプレイヤーの速度
     private Vector3 _playerSpeed = Vector3.zero;
     //プレイヤーの位置
-    public Vector3 _playerPos = Vector3.zero;
-    public Vector3 _playerRot = Vector3.zero;
-    //プレイヤーの機体の傾き具合
-    private int _incline = 30;
-    //最高速度
-    private float _playerSpeedMax = 0.3f;
+    private Vector3 _playerPos = Vector3.zero;
+    private Vector3 _playerRot = Vector3.zero;
+
     //時間管理
     private float _height = 0;
     private float _width = 0;
-    //プレイヤーの低速移動
-    private float _lowSpeed = 2.5f;
+
+    //カメラの範囲指定
+    private Rect rect = new Rect(0, 0, 1, 1);
+
 
     public void OnStart()
     {
@@ -55,22 +48,39 @@ public class ObjectPlayer
     }
 
     /// <summary>プレイヤーがキーに対応した動きを行う</summary>
-    public void PlayerMove()
+    private void PlayerMove()
     {
-        //それぞれのキーに応じて、移動する。
-        _playerSpeed.z = GetKeyMove(Data.UP, Data.Down, _playerSpeed.z, 0, _playerSpeedMax, ref _height);
-        _playerSpeed.x = GetKeyMove(Data.Right, Data.Left, _playerSpeed.x, 0, _playerSpeedMax, ref _width);
-
-        if (Input.GetKey(Data.BButton)) _playerSpeed /= _lowSpeed;
-
-        _playerRot.x = _playerSpeed.z * _incline;
-        _playerRot.z = _playerSpeed.x * -_incline;
+        _playerSpeed = PlayerSpeed(_playerSpeed, Data.PlayerMaxSpeed, Data.PlayerLowSpeed, ref _height, ref _width);
 
         //位置にスピードを足す。
-        _playerPos += _playerSpeed;
+        _playerPos += _playerSpeed;//ーーーーーーーーーーーーーーーーーーーーーーーーーーーーここに書く？
+        _playerRot = SetPlayerRot(_playerSpeed, Data.PlayerIncline);
     }
+
+    public Vector3 SetPlayerRot(Vector3 speed,float incline)
+    {
+        Vector3 rot = Vector3.zero;
+        rot.x = Mathf.Clamp( speed.z * incline,-incline,incline);
+        rot.z = Mathf.Clamp(speed.x * -incline, -incline, incline);
+
+        return rot;
+    }
+
+    public Vector3 PlayerSpeed(Vector3 speed, float maxSpeed, float lowSpeed,ref float height, ref float width)
+    {
+        //それぞれのキーに応じて、移動する。
+        speed.z = GetKeyMove(Data.UP, Data.Down, speed.z, 0, maxSpeed, ref height);
+        speed.x = GetKeyMove(Data.Right, Data.Left, speed.x, 0, maxSpeed, ref width);
+
+        if (Input.GetKey(Data.BButton)) speed /= lowSpeed;
+
+        //OutScreen(SerializeGameData.GameData.gameCam, _playerPos, 0);
+
+        return speed;
+    }
+
     /// <summary>設定されたキーに対してスピードを返す</summary>
-    public float GetKeyMove(KeyCode key, KeyCode mirrorKey, float speed, float min, float max, ref float time)
+    private float GetKeyMove(KeyCode key, KeyCode mirrorKey, float speed, float min, float max, ref float time)
     {
         //プラス方向の入力処理。キーを離しても、移動処理が続くように。
         if (Input.GetKey(key)) return Mathf.Lerp(speed, max, LerpCalculate(ref time));
@@ -89,5 +99,27 @@ public class ObjectPlayer
         time += Time.deltaTime;
         float lerptime = time * time * 0.1f;
         return Mathf.Min(lerptime / 1, 1);
+    }
+
+    //画面外に行ったらそっちに移動出来ない
+    private bool OutScreen(Vector3 speed)
+    {
+        Vector3 screenPos = SerializeGameData.GameData.gameCam.WorldToViewportPoint(_playerPos+speed);
+
+        if(screenPos.x>1&&speed.x>0)
+        {
+
+        }
+
+
+        //上下左右いけないとこの値は強制で０にする
+
+
+        //１超えるかーになったら画面外
+
+
+
+        Debug.Log(screenPos);
+        return !rect.Contains(screenPos);
     }
 }

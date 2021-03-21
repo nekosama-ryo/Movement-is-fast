@@ -50,10 +50,13 @@ public class TitleScene
     //秒数で処理を切り替える
     private float _countTime = 0f;
 
+
+
     public void OnStart()
     {
         _titleAction = TitleAction.Title_Start;
         SelectPoint = 0;
+        SerializeTitleData.TitleData.selectBulletCountText.text = Data.Bullet.ToString();
     }
 
     /// <summary>タイトル画面で現在行う処理を呼び出す</summary>
@@ -140,9 +143,9 @@ public class TitleScene
                     //指向の選択
                     SelectSetSwitchColor(0, SerializeTitleData.TitleData.oriented);
                     //プールの選択
-                    SelectSetColor(1, SerializeTitleData.TitleData.selectPoolText);
+                    SelectSetColor(1, SerializeTitleData.TitleData.selectPoolText, true);
                     //非同期の選択
-                    SelectSetColor(2, SerializeTitleData.TitleData.selectAsyncText);
+                    SelectSetColor(2, SerializeTitleData.TitleData.selectAsyncText, true);
                     //弾数の選択
                     SetBullet(3, SerializeTitleData.TitleData.selectBulletCountText);
                     //無敵モードの選択
@@ -211,10 +214,10 @@ public class TitleScene
     /// <summary>色のオンオフを切り替える </summary>
     private Color SwitchColor(Color color)
     {
-        return  color == Color.white ? _selectOffColor : Color.white;
+        return color == Color.white ? _selectOffColor : Color.white;
     }
 
-    private Color SetTransparent(int number,Color color)
+    private Color SetTransparent(int number, Color color)
     {
         color.a = SelectPoint == number ? _SelectOnTransparence : _SelectOffTransparence;
         return color;
@@ -226,14 +229,33 @@ public class TitleScene
     /// <param name="number">ボタン番号</param>
     /// <param name="color">色情報</param>
     /// <returns>選択状況に応じた色情報</returns>
-    private void SelectSetColor(int number, Text text)
+    private void SelectSetColor(int number, Text text, bool dotsOff = false)
     {
+        //Dotsに設定している際に、オンオフを切り替えられない。
+        if (_isDotsMode() && dotsOff)
+        {
+            //強制オフ
+            text.color = SetTransparent(number, _selectOffColor);
+            return;
+        }
+
         //選択位置に応じた透明度を設定
         text.color = SetTransparent(number, text.color);
 
         //選択番号時に、対応したボタンを押すとオンとオフを切り替える。
-        if (!Input.GetKeyDown(Data.AButton) || SelectPoint != number) return;
+        if (Input.GetKeyDown(Data.AButton) && SelectPoint == number)
+        {
+            //オンとオフを切り替える
             text.color = SwitchColor(text.color);
+        }
+    }
+
+    //現在Dotsに設定されているかどうか
+    private bool _isDotsMode()
+    {
+        return SerializeTitleData.TitleData.oriented[1].color.r == 1 &&
+               SerializeTitleData.TitleData.oriented[1].color.g == 1 &&
+       SerializeTitleData.TitleData.oriented[1].color.b == 1 ? true : false;
     }
 
     /// <summary>
@@ -249,7 +271,7 @@ public class TitleScene
         foreach (Text text in texts)
         {
             color = text.color;
-            text.color = SetTransparent(number,color);
+            text.color = SetTransparent(number, color);
         }
 
         if (!Input.GetKeyDown(Data.AButton) || SelectPoint != number) return;
@@ -287,18 +309,21 @@ public class TitleScene
         //選択位置に応じた透明度を設定
         text.color = SetTransparent(number, text.color);
 
+        //自分の位置にカーソルがない場合は以降の処理は行わない。
         if (number != SelectPoint) return;
 
-        if(Input.GetKeyDown(Data.Right))
+        //弾の加減
+        if (Input.GetKeyDown(Data.Right))
         {
             Data.Bullet += _sumBullet;
-            SerializeTitleData.TitleData.selectBulletCountText.text = Data.Bullet.ToString();
         }
         if (Input.GetKeyDown(Data.Left))
         {
             Data.Bullet -= _sumBullet;
-            SerializeTitleData.TitleData.selectBulletCountText.text = Data.Bullet.ToString();
         }
+
+        //文字の更新
+        SerializeTitleData.TitleData.selectBulletCountText.text = Data.Bullet.ToString();
     }
 
     /// <summary>ゲームの開始処理 </summary>
@@ -306,7 +331,7 @@ public class TitleScene
     {
         //選択位置に応じた透明度を設定
         text.color = SetTransparent(number, text.color);
-        if (number != SelectPoint||!Input.GetKeyDown(Data.AButton)) return;
+        if (number != SelectPoint || !Input.GetKeyDown(Data.AButton)) return;
 
         //テキストの透明度からゲームの設定状態を決定する。
         Data.IsOrientedObject = CheckTransparence(SerializeTitleData.TitleData.oriented[0].color);
@@ -314,7 +339,14 @@ public class TitleScene
         Data.IsAsync = CheckTransparence(SerializeTitleData.TitleData.selectAsyncText.color);
         Data.IsInvincibilily = CheckTransparence(SerializeTitleData.TitleData.Invincibility[0].color);
         //シーン切り替え
-        Data.SetScene(Data.GameNumber);
+        if (Data.IsOrientedObject)
+        {
+            Data.SetScene(Data.GameSceneNumber);
+        }
+        else
+        {
+            Data.SetScene(Data.DataSceneNumber);
+        }
     }
 
     /// <summary>色の透明度からフラグを設定する </summary>

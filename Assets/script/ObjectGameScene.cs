@@ -11,11 +11,10 @@ using System;
 
 public class ObjectGameScene
 {
-    //生成間隔
-    private float _createFrame = 5;
+
     //スクリプト
     private ObjectPlayer _playerScr = new ObjectPlayer();
-    private CreateBullet _bulletScr = new CreateBullet();
+    private ObjectBullet _bulletScr = new ObjectBullet();
 
     //使用するタスクのキャンセル
     private CancellationTokenSource _cancell = new CancellationTokenSource(1);
@@ -31,7 +30,7 @@ public class ObjectGameScene
         //プレイヤーを非同期で動かす処理
         _playerScr.OnAsyncStart(_cancell.Token).Forget();
         //弾を非同期で動かす処理
-        _bulletScr.OnAsyncStart(_cancell.Token, SerializeGameData.GameData.bossTransform, _createFrame).Forget();
+        _bulletScr.OnAsyncStart(_cancell.Token, SerializeGameData.GameData.playerTransform, Data.BulletCreateFrame).Forget();
     }
 
     public void Cancellation()
@@ -46,6 +45,6 @@ public class ObjectGameScene
             //プレイヤーを動かす処理
             _playerScr.OnUpdate();
             //弾を動かす処理
-            _bulletScr.OnUpdate(SerializeGameData.GameData.bossTransform.position, _createFrame);
+            _bulletScr.OnUpdate(SerializeGameData.GameData.playerTransform.position, Data.BulletCreateFrame);
     }
 }

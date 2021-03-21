@@ -13,6 +13,7 @@ public class GameManager : MonoBehaviour
     //それぞれのシーンのデータ情報
     private SerializeTitleData _titleData = default;
     private SerializeGameData _gameData = default;
+    private SerializeDotsData _dotsData = default;
 
     //スクリプト
     private TitleScene _titleScr = new TitleScene();
@@ -44,13 +45,18 @@ public class GameManager : MonoBehaviour
         switch (Data.SceneNumber)
         {
             //タイトルシーンの動作
-            case Data.TitleNumber:
+            case Data.TitleSceneNumber:
+                
                 _titleScr.OnUpdate();
                 break;
 
             //ゲームシーンの動作
-            case Data.GameNumber:
+            case Data.GameSceneNumber:
                 _gameScr.OnUpdate();
+                break;
+
+            //データ指向のゲームシーン
+            case Data.DataSceneNumber:
                 break;
         }
 
@@ -61,7 +67,7 @@ public class GameManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             _gameScr.Cancellation();
-            Data.SetScene(Data.TitleNumber);
+            Data.SetScene(Data.TitleSceneNumber);
         }
     }
 
@@ -75,7 +81,7 @@ public class GameManager : MonoBehaviour
         switch (Data.SceneNumber)
         {
             //タイトルシーン
-            case Data.TitleNumber:
+            case Data.TitleSceneNumber:
                 {
                     //タイトルシーンのデータを取得
                     _titleData = GameObject.FindGameObjectWithTag(Data.TitleDataTagName).GetComponent<SerializeTitleData>();
@@ -87,7 +93,7 @@ public class GameManager : MonoBehaviour
                 break;
 
             //ゲームシーン
-            case Data.GameNumber:
+            case Data.GameSceneNumber:
                 {
                     //ゲームシーンのデータを取得
                     _gameData = GameObject.FindGameObjectWithTag(Data.GameDataTagName).GetComponent<SerializeGameData>();
@@ -95,6 +101,16 @@ public class GameManager : MonoBehaviour
                     _gameData.SetSerializeData(_gameData);
                     //ゲームシーンのスタートメソッド
                     _gameScr.OnStart();
+                }
+                break;
+
+            //Dots使用のゲームシーン
+            case Data.DataSceneNumber:
+                {
+                    //Dotsゲームシーンのデータを取得
+                    _dotsData = GameObject.FindGameObjectWithTag(Data.DataGameDataTagName).GetComponent<SerializeDotsData>();
+                    //取得したデータを設定する。
+                    _dotsData.SetSerializeData(_dotsData);
                 }
                 break;
         }
