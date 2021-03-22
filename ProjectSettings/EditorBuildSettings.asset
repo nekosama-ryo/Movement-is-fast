@@ -12,6 +12,6 @@ EditorBuildSettings:
     path: Assets/Scene/Game.unity
     guid: 300321d157399e045baaec9f77680b08
   - enabled: 1
-    path: Assets/Scene/DataGeme.unity
+    path: Assets/Scene/DotsGeme.unity
     guid: 6302cccc757771f4998d0a9f54d328b8
   m_configObjects: {}

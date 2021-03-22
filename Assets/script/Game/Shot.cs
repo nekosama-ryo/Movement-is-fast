@@ -1,16 +1,18 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
+/// <summary>弾の発射の挙動</summary>
 public class Shot
 {
+    //生成時にずらす角度
     private float _angle = 0;
-    private Vector3 _createAngle = Vector3.zero;
-    private System.Action<Vector3,Vector3> _bulletCreate;
+    //弾の生成処理
+    private System.Action<Vector3,Vector3> _bulletCreate=default;
 
     public void OnStart(System.Action<Vector3,Vector3>createAction)
     {
+        //角度を求める
         _angle = 360f/Data.Bullet;
+        //弾の生成方法を取得する
         _bulletCreate = createAction;
     }
 
@@ -26,7 +28,5 @@ public class Shot
             //次回の生成角度を変える。
             createAngle.y += _angle;
         }
-        //初期の生成位置をずらす
-        _createAngle.y += _angle * 0.5f;
     }
 }

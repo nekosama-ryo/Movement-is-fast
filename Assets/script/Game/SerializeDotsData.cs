@@ -1,9 +1,9 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
+/// <summary>データ指向のSerializeで取得したいデータ</summary>
 public class SerializeDotsData : MonoBehaviour
 {
+    //外部からデータを取得出来る
     public static SerializeDotsData DotsData { get; private set; } = default;
     public void SetSerializeData(SerializeDotsData data)
     {

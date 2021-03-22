@@ -1,8 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
 /// <summary>全てのゲーム内の動作を管理する </summary>
 public class GameManager : MonoBehaviour
@@ -46,28 +43,40 @@ public class GameManager : MonoBehaviour
         {
             //タイトルシーンの動作
             case Data.TitleSceneNumber:
-                
                 _titleScr.OnUpdate();
                 break;
 
-            //ゲームシーンの動作
+            //オブジェクト指向ゲームシーンの動作
             case Data.GameSceneNumber:
                 _gameScr.OnUpdate();
                 break;
 
-            //データ指向のゲームシーン
-            case Data.DataSceneNumber:
+            //データ指向ゲームシーンの動作
+            case Data.DotsSceneNumber:
                 break;
         }
 
         //全てのシーンで行う処理
-        _camScr.CameraMoveTitle();
+        _camScr.OnUpdate();
+        EscAction();
+    }
 
-        //仮置きリセット
+    /// <summary>Escが押された時の処理</summary>
+    private void EscAction()
+    {
         if (Input.GetKeyDown(KeyCode.Escape))
         {
-            _gameScr.Cancellation();
-            Data.SetScene(Data.TitleSceneNumber);
+            if(Data.SceneNumber==Data.TitleSceneNumber)
+            {
+                //アプリケーションの終了
+                Application.Quit();
+            }
+            else
+            {
+                //タイトルに戻る
+                _gameScr.Cancellation();
+                Data.SetScene(Data.TitleSceneNumber);
+            }
         }
     }
 
@@ -105,10 +114,10 @@ public class GameManager : MonoBehaviour
                 break;
 
             //Dots使用のゲームシーン
-            case Data.DataSceneNumber:
+            case Data.DotsSceneNumber:
                 {
                     //Dotsゲームシーンのデータを取得
-                    _dotsData = GameObject.FindGameObjectWithTag(Data.DataGameDataTagName).GetComponent<SerializeDotsData>();
+                    _dotsData = GameObject.FindGameObjectWithTag(Data.DotsDataTagName).GetComponent<SerializeDotsData>();
                     //取得したデータを設定する。
                     _dotsData.SetSerializeData(_dotsData);
                 }

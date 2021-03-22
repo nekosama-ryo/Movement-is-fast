@@ -1,8 +1,10 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>オブジェクト指向のSerializeで取得したいデータ</summary>
 public class SerializeTitleData : MonoBehaviour
 {
+    //外部からデータを取得出来る
     public static SerializeTitleData TitleData { get; private set; } = default;
     public void SetSerializeData(SerializeTitleData data)
     {

@@ -1,17 +1,9 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using Cysharp.Threading.Tasks;
+﻿using Cysharp.Threading.Tasks;
 using System.Threading;
-using Unity.Entities;
-using Unity.Jobs;
-using Unity.Mathematics;
-using Unity.Transforms;
-using System;
 
+/// <summary>オブジェクト指向のゲームシーン全体の処理</summary>
 public class ObjectGameScene
 {
-
     //スクリプト
     private ObjectPlayer _playerScr = new ObjectPlayer();
     private ObjectBullet _bulletScr = new ObjectBullet();
@@ -33,6 +25,7 @@ public class ObjectGameScene
         _bulletScr.OnAsyncStart(_cancell.Token, SerializeGameData.GameData.playerTransform, Data.BulletCreateFrame).Forget();
     }
 
+    /// <summary>キャンセル処理を行う</summary>
     public void Cancellation()
     {
         _cancell.Cancel();

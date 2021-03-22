@@ -5,57 +5,46 @@ using UnityEngine.UI;
 public class TitleScene
 {
     //AnyButtonのテキストの透明度を切り替える速度。
-    private float _anyButtonColorSpeed = 0.002f;
+    private float _anyButtonColorSpeed = default;
     //AnyButtonの画面切り替え時に透明度を切り替える速度
-    private float _anyButtonReplacedSpeed = 0.1f;
-
-    //ボタンが押された際にAnyButtonが何秒後に切り替わるか
-    private float _anyButtonReplacedTime = 0.3f;
-    //ゲーム開始画面にあるオブジェクトが消えるまでの時間
-    private float _titleObjDestroyTime = 0.3f;
+    private float _anyButtonReplacedSpeed = default;
 
     //選択画面で現在どこを参照しているか
     private int _selectPoint = 0;
-    //選択画面の参照位置の最大値
-    private const int _selectPointMax = 5;
     //選択位置のプロパティ
     private int SelectPoint
     {
         get { return _selectPoint; }
         set
         {
-            if (value > _selectPointMax)
+            if (value > Data.SelectPointMax)
             {
                 value = 0;
             }
             if (value < 0)
             {
-                value = _selectPointMax;
+                value = Data.SelectPointMax;
             }
             _selectPoint = value;
         }
     }
-
-    //非選択時のテキストの色、透明度
-    private float _SelectOffTransparence = 0.6f;
-    private float _SelectOnTransparence = 1f;
-    private Color _selectOffColor = new Color(0.3f, 0.3f, 0.3f);
-
-    private int _sumBullet = 100;
-
     //タイトル画面の位置Ｅｎｕｍ
     private TitleAction _titleAction = 0;
-
-    private float _selectInstantiateTime = 0.5f;
     //秒数で処理を切り替える
     private float _countTime = 0f;
 
-
-
     public void OnStart()
     {
+        //タイトル画面の遷移状況の初期化
         _titleAction = TitleAction.Title_Start;
+
+        //値の初期化
         SelectPoint = 0;
+        _anyButtonColorSpeed = Data.AnyButtonColorSpeed;
+        _anyButtonReplacedSpeed = Data.AnyButtonReplacedSpeed;
+
+
+        //弾数表示の設定
         SerializeTitleData.TitleData.selectBulletCountText.text = Data.Bullet.ToString();
     }
 
@@ -89,7 +78,7 @@ public class TitleScene
                     _countTime += Time.deltaTime;
 
                     //これ以降は時間経過後の処理
-                    if (_countTime < _anyButtonReplacedTime) return;
+                    if (_countTime < Data.AnyButtonReplacedTime) return;
                     //値のリセットと、ロゴの縮小処理に移行
                     _titleAction = TitleAction.Title_Shrink;
                     _countTime = 0;
@@ -105,7 +94,7 @@ public class TitleScene
                     //徐々に縮小
                     foreach (Transform transform in transforms)
                     {
-                        transform.localScale = SetGraduallySizeY(transform.localScale, _titleObjDestroyTime, true);
+                        transform.localScale = SetGraduallySizeY(transform.localScale, Data.TitleObjDestroyTime, true);
                     }
 
                     //これ以降は縮小完了後の処理
@@ -124,7 +113,7 @@ public class TitleScene
                     //徐々に表示
                     foreach (Transform transform in transforms)
                     {
-                        transform.localScale = SetGraduallySizeY(transform.localScale, _selectInstantiateTime);
+                        transform.localScale = SetGraduallySizeY(transform.localScale, Data.SelectInstantiateTime);
                     }
 
                     //これ以降は縮小完了後の処理
@@ -157,12 +146,7 @@ public class TitleScene
         }
     }
 
-    /// <summary>
-    /// 透明度を徐々に動かす
-    /// </summary>
-    /// <param name="color">動かしたい色情報</param>
-    /// <param name="speed">動かすスピード</param>
-    /// <returns>現在の透明度</returns>
+    /// <summary>透明度を徐々に動かす</summary>
     private Color SetColorGraduallyTransparency(Color color, ref float speed)
     {
         //透明度の加減算の切り替えを行う。
@@ -177,13 +161,7 @@ public class TitleScene
         return color;
     }
 
-    /// <summary>
-    /// 徐々に大きさを変える
-    /// </summary>
-    /// <param name="transform">変更するオブジェクトの大きさ</param>
-    /// <param name="time">変更がおわる時間</param>
-    /// <param name="max">最大サイズ</param>
-    /// <param name="reduce">縮小</param>
+    /// <summary>徐々に大きさを変える</summary>
     private Vector3 SetGraduallySizeY(Vector3 size, float time, bool reduce = false, float max = 1)
     {
         //縮小か拡大かを管理
@@ -194,9 +172,7 @@ public class TitleScene
         return size;
     }
 
-    /// <summary>
-    /// 選択画面のキー移動処理
-    /// </summary>
+    /// <summary>選択画面のキー移動処理</summary>
     private void SelectKey()
     {
         //上キー処理
@@ -214,28 +190,23 @@ public class TitleScene
     /// <summary>色のオンオフを切り替える </summary>
     private Color SwitchColor(Color color)
     {
-        return color == Color.white ? _selectOffColor : Color.white;
+        return color == Color.white ? Data.SelectOffColor : Color.white;
     }
 
     private Color SetTransparent(int number, Color color)
     {
-        color.a = SelectPoint == number ? _SelectOnTransparence : _SelectOffTransparence;
+        color.a = SelectPoint == number ? Data.SelectOnTransparence : Data.SelectOffTransparence;
         return color;
     }
 
-    /// <summary>
-    /// ボタンのオンオフ処理
-    /// </summary>
-    /// <param name="number">ボタン番号</param>
-    /// <param name="color">色情報</param>
-    /// <returns>選択状況に応じた色情報</returns>
+    /// <summary>ボタンのオンオフ処理</summary>
     private void SelectSetColor(int number, Text text, bool dotsOff = false)
     {
         //Dotsに設定している際に、オンオフを切り替えられない。
         if (_isDotsMode() && dotsOff)
         {
             //強制オフ
-            text.color = SetTransparent(number, _selectOffColor);
+            text.color = SetTransparent(number, Data.SelectOffColor);
             return;
         }
 
@@ -250,7 +221,7 @@ public class TitleScene
         }
     }
 
-    //現在Dotsに設定されているかどうか
+    /// <summary>現在Dotsがオンになっているかどうか</summary>
     private bool _isDotsMode()
     {
         return SerializeTitleData.TitleData.oriented[1].color.r == 1 &&
@@ -258,11 +229,7 @@ public class TitleScene
        SerializeTitleData.TitleData.oriented[1].color.b == 1 ? true : false;
     }
 
-    /// <summary>
-    /// 排他的な複数ボタンのオンオフ処理
-    /// </summary>
-    /// <param name="number">ボタン番号</param>
-    /// <param name="texts">テキスト情報</param>
+    /// <summary> 排他的な複数ボタンのオンオフ処理</summary>
     private void SelectSetSwitchColor(int number, Text[] texts)
     {
         Color color;
@@ -285,7 +252,7 @@ public class TitleScene
                 //最初をオンにする。
                 texts[0].color = Color.white;
                 //最終位置をオフにする。
-                texts[texts.Length - 1].color = _selectOffColor;
+                texts[texts.Length - 1].color = Data.SelectOffColor;
                 //これ以上探索の必要がないので終了する。
                 return;
             }
@@ -304,6 +271,7 @@ public class TitleScene
         }
     }
 
+    /// <summary> 弾の数を設定する</summary>
     private void SetBullet(int number, Text text)
     {
         //選択位置に応じた透明度を設定
@@ -315,11 +283,11 @@ public class TitleScene
         //弾の加減
         if (Input.GetKeyDown(Data.Right))
         {
-            Data.Bullet += _sumBullet;
+            Data.Bullet += Data.SumBullet;
         }
         if (Input.GetKeyDown(Data.Left))
         {
-            Data.Bullet -= _sumBullet;
+            Data.Bullet -= Data.SumBullet;
         }
 
         //文字の更新
@@ -345,7 +313,7 @@ public class TitleScene
         }
         else
         {
-            Data.SetScene(Data.DataSceneNumber);
+            Data.SetScene(Data.DotsSceneNumber);
         }
     }
 

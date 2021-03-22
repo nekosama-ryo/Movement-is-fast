@@ -1,9 +1,8 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using Cysharp.Threading.Tasks;
 using System.Threading;
-using Cysharp.Threading.Tasks;
+using UnityEngine;
 
+/// <summary>オブジェクト指向の弾の挙動</summary>
 public class ObjectBullet
 {
     //弾の生成処理
@@ -27,12 +26,15 @@ public class ObjectBullet
 
     public void OnStart()
     {
+        //弾の生成方法を指定する。
         _bulletScr.OnStart();
     }
 
     public void OnUpdate(Vector3 pos,float time)
     {
-        _bulletScr.AllBulletControl();
+        //弾の動作
+        _bulletScr.ObjectBulletMove();
+        //弾の発射・生成
         _bulletScr.ObjectBulletShoot(pos,time);
     }
 }

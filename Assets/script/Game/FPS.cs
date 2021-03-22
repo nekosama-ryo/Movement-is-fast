@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine.UI;
 
+/// <summary>FPSを求める</summary>
 public class FPS:MonoBehaviour
 {
     //フレーム
@@ -24,6 +25,7 @@ public class FPS:MonoBehaviour
         text = GetComponent<Text>();
     }
 
+    //FPSを求めたいためUpdateを持たせる
     private void Update()
     {
         //フレームをカウント

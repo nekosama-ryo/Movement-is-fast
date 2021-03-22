@@ -1,35 +1,27 @@
-﻿using UnityEngine;
-using System.Collections.Generic;
-using System.Threading;
-using Cysharp.Threading.Tasks;
+﻿using System.Collections.Generic;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
-using Unity.Rendering;
 using Unity.Transforms;
-using System;
+using UnityEngine;
 
+/// <summary>弾の処理 </summary>
 public class Bullet 
 {
     //弾のプール
-    public List<(GameObject obj, Transform transform)> _bulletsList = new List<(GameObject, Transform)>();
+    public List<(GameObject obj, Transform transform)> _bulletsPool = default;
     //弾のエンティティプレハブ
-    private Entity _bulletPrefab;
+    private Entity _bulletEntityPrefab=default;
     //カメラの範囲指定
-    private Rect rect = new Rect(0, 0, 1, 1);
-
-    //生成する角度
-    private Vector3 _createAngle = Vector3.zero;
-    //隣の弾との角度差
-    private float _angle = default;
-    //時間
-    private float _time = 0f;
-
+    private Rect _rect = new Rect(0, 0, 1, 1);
+    //発射方法
     private Shot _shotScr = new Shot();
 
     public void OnStart()
     {
+        //弾の生成方法を設定
         _shotScr.OnStart(CreateOrientedBullet);
+        //プールの初期化
+        _bulletsPool = new List<(GameObject, Transform)>();
     }
 
     /// <summary>指向情報を元に弾を生成する。 </summary>
@@ -43,7 +35,7 @@ public class Bullet
         else
         {
             //データ指向の弾生成
-            CreateEntityBullet(pos, rot);
+            CreateDotsBullet(pos, rot);
         }
     }
 
@@ -54,13 +46,13 @@ public class Bullet
         if (Data.IsPool)
         {
             //Listの中から未使用のオブジェクトを見つける
-            for (int i = 0; i < _bulletsList.Count; i++)
+            for (int i = 0; i < _bulletsPool.Count; i++)
             {
-                if (_bulletsList[i].obj.activeSelf) continue;
+                if (_bulletsPool[i].obj.activeSelf) continue;
 
-                _bulletsList[i].transform.position = pos;
-                _bulletsList[i].transform.eulerAngles = rot;
-                _bulletsList[i].obj.SetActive(true);
+                _bulletsPool[i].transform.position = pos;
+                _bulletsPool[i].transform.eulerAngles = rot;
+                _bulletsPool[i].obj.SetActive(true);
                 return;
             }
         }
@@ -74,7 +66,7 @@ public class Bullet
         Obj.trs.eulerAngles = rot;
 
         //稼働中のオブジェクトとして保存
-        _bulletsList.Add(Obj);
+        _bulletsPool.Add(Obj);
     }
 
     /// <summary>弾を消す・プールを行う </summary>
@@ -84,37 +76,40 @@ public class Bullet
         if (Data.IsPool)
         {
             //値の初期化と、プール
-            _bulletsList[i].obj.SetActive(false);
-            _bulletsList[i].transform.eulerAngles = Vector3.zero;
+            _bulletsPool[i].obj.SetActive(false);
+            _bulletsPool[i].transform.eulerAngles = Vector3.zero;
         }
         else
         {
             //プールを使用しないで、オブジェクトを消す。
-            UnityEngine.Object.Destroy(_bulletsList[i].obj);
-            _bulletsList.Remove(_bulletsList[i]);
+            UnityEngine.Object.Destroy(_bulletsPool[i].obj);
+            _bulletsPool.Remove(_bulletsPool[i]);
         }
     }
 
-    public void AllBulletControl()
+    /// <summary>弾を直線に動かし、画面外の場合消す </summary>
+    public void ObjectBulletMove()
     {
-        for(int i=0;i<_bulletsList.Count;i++)
+        for(int i=0;i<_bulletsPool.Count;i++)
         {
             //弾が存在するかどうか
-            if (!_bulletsList[i].obj.activeSelf) continue;
+            if (!_bulletsPool[i].obj.activeSelf) continue;
 
             //画面外に弾があるか調べる
-            if (OutScreen(_bulletsList[i].transform.position,SerializeGameData.GameData.gameCam)) DestroyObjectBullet(i);
+            if (OutScreen(_bulletsPool[i].transform.position,SerializeGameData.GameData.gameCam)) DestroyObjectBullet(i);
 
             //弾を動かす。
-            _bulletsList[i].transform.position = BulletMove(_bulletsList[i].transform);
+            _bulletsPool[i].transform.position = BulletMove(_bulletsPool[i].transform);
         }
     }
 
-    //画面外に存在するか調べる。
+    /// <summary>弾が画面外にあるか調べる </summary>
     public bool OutScreen(Vector3 pos,Camera cam)
     {
+        //弾の位置を調べる
         Vector3 screenPos = cam.WorldToViewportPoint(pos);
-        return !rect.Contains(screenPos);
+        //画面外かどうか返す
+        return !_rect.Contains(screenPos);
     }
 
     /// <summary>オブジェクト指向の弾発射 </summary>
@@ -136,21 +131,15 @@ public class Bullet
 
     //ここからデータ指向の弾操作
 
-    /// <summary>弾のエンティティプレハブを生成する </summary>
-    public void CreateEntityBullet(Vector3 pos, Vector3 rot)
+    /// <summary>データ指向の弾生成（プレハブが生成済みであること） </summary>
+    public void CreateDotsBullet(Vector3 pos, Vector3 rot)
     {
         //エンティティを新規生成する。
-        Entity bullet = Data.EntityManager.Instantiate(_bulletPrefab);
+        Entity bullet = Data.EntityManager.Instantiate(_bulletEntityPrefab);
 
         //生成位置と生成角度の設定
         Data.EntityManager.SetComponentData(bullet, new Translation { Value = pos });
         Data.EntityManager.SetComponentData(bullet, new Rotation { Value = quaternion.Euler(rot) });
-    }
-
-    /// <summary>弾のエンティティを消す </summary>
-    public void DestroyEntityBullet(Entity entity)
-    {
-        Data.EntityManager.DestroyEntity(entity);
     }
 
     /// <summary>弾のエンティティプレハブを生成する。</summary>
@@ -161,7 +150,7 @@ public class Bullet
 
         // GameObjectプレハブからEntityプレハブへの変換
         GameObjectConversionSettings settings = GameObjectConversionSettings.FromWorld(defaultWorld, null);
-        _bulletPrefab = GameObjectConversionUtility.ConvertGameObjectHierarchy(SerializeDotsData.DotsData.bulletObj, settings);
-        Data.EntityManager.AddComponent<BulletTag>(_bulletPrefab);
+        _bulletEntityPrefab = GameObjectConversionUtility.ConvertGameObjectHierarchy(SerializeDotsData.DotsData.bulletObj, settings);
+        Data.EntityManager.AddComponent<BulletTag>(_bulletEntityPrefab);
     }
 }

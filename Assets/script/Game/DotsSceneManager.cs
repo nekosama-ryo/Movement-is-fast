@@ -1,17 +1,18 @@
-﻿using UnityEngine;
-using System.Threading;
-using Cysharp.Threading.Tasks;
-using Unity.Entities;
+﻿using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Rendering;
 using Unity.Transforms;
-using System;
-public class DataSceneManager : SystemBase
+using UnityEngine;
+
+/// <summary> データ指向のゲームシーンの挙動</summary>
+public class DotsSceneManager : SystemBase
 {
     //プレイヤーの挙動計算
     private ObjectPlayer _playerScr = new ObjectPlayer();
-    private Bullet _createBulletScr = new Bullet();
+    //弾の生成方法を取得
+    private Bullet _bulletScr = new Bullet();
+    //弾の発射
     private Shot _shotScr = new Shot();
 
     //現在のプレイヤーの速度
@@ -23,28 +24,27 @@ public class DataSceneManager : SystemBase
     protected override void OnStartRunning()
     {
         //エンティティプレハブを生成する。
-        _createBulletScr.CreateBulletEntityPrefab();
+        _bulletScr.CreateBulletEntityPrefab();
         //発射の初期処理
-        _shotScr.OnStart(_createBulletScr.CreateEntityBullet);
+        _shotScr.OnStart(_bulletScr.CreateDotsBullet);
     }
 
     protected override void OnUpdate()
     {
-        //ゲームマネージャー停止時にエンティティをリセットする
+        //ゲームマネージャー停止時にエンティティをリセットすることでOnStartRunningを強制的に呼び出す。
         if (!Data.IsGameManager)
         {
             EntityManager.DestroyEntity(EntityManager.UniversalQuery);
         }
 
-
         //Dotsシーンだったら以降の処理を行う。
-        if (Data.SceneNumber != Data.DataSceneNumber) return;
+        if (Data.SceneNumber != Data.DotsSceneNumber) return;
 
         //画面外の弾を消す
-        Entities.WithAll<BulletTag>().WithStructuralChanges().ForEach((Entity entity, LocalToWorld translation) =>
+        Entities.WithAll<BulletTag>().WithStructuralChanges().ForEach((Entity entity,in LocalToWorld translation) =>
         {
             //画面外にいるかどうか
-            if (_createBulletScr.OutScreen(translation.Position, SerializeDotsData.DotsData.gameCam))
+            if (_bulletScr.OutScreen(translation.Position, SerializeDotsData.DotsData.gameCam))
             {
                 //エンティティの破棄
                 Data.EntityManager.DestroyEntity(entity);
@@ -93,7 +93,7 @@ public class DataSceneManager : SystemBase
             translation.Value.z += playerTranslation.z;
 
             //回転調整
-            rotation.Value = quaternion.Euler(playerRotetion + Data.PlayerparticleRot);
+            rotation.Value = quaternion.Euler(playerRotetion + Data.PlayerParticleRot);
         }).Run();
     }
 }
